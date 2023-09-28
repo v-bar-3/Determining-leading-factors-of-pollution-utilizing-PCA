@@ -1,5 +1,7 @@
 # Determining leading factors of pollution utilizing PCA
 
+This was a final project I created with Mark Faynboym, Iam Dimapasok, and Jared Woolsey for STA 135: Multivariate Data Analysis.
+
 Air pollution is a concerning global environmental issue that poses a significant risk to human health and ecosystems as a whole. It is caused by the
 release of harmful substances into the atmosphere, resulting from various human activities, industrial processes and natural sources. As the
 detrimental effects of air pollution continue to emerge, researchers and policymakers are increasingly relying on statistical analysis to gain a deeper
