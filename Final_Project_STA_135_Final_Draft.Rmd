@@ -1,0 +1,361 @@
+---
+title: "Final_Project_STA135"
+author: "Mark Faynboym, Vincent Barletta, Christian(Ian) Dimapasok, Jared Woolsey"
+date: '2023-06-04'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    number_sections: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("HSAUR2",repos = "http://cran.us.r-project.org")
+#install.packages("tidyverse",repos = "http://cran.us.r-project.org")
+#install.packages("GGally",repos = "http://cran.us.r-project.org")
+#install.packages("ResourceSelection",repos = "http://cran.us.r-project.org")
+#install.packages("hrbrthemes",repos = "http://cran.us.r-project.org")
+#install.packages("gplots", repos = "http://cran.us.r-project.org")
+
+library(MASS)
+library(ResourceSelection)
+library(HSAUR2)
+library(tidyverse)
+library(GGally)
+library(viridis)
+library(corrplot)
+# library(hrbrthemes)
+library(gplots)
+library(fdm2id)
+library(FactoMineR)
+library(factoextra)
+data(USairpollution)
+```
+
+
+# Introduction
+Air pollution is a concerning global environmental issue that poses a significant risk to human health and ecosystems as a whole. It is caused by the release of harmful substances into the atmosphere, resulting from various human activities, industrial processes and natural sources. As the detrimental effects of air pollution continue to emerge, researchers and policymakers are increasingly relying on statistical analysis to gain a deeper insight into the patterns, sources and impacts involved. 
+
+What this project aims to delve into is the exploration and analysis of air pollution with data found in the HSAUR2 package. Mainly we will be looking into several main characteristics of large cities and with the use of Sulfur Dioxide as the measure of air pollution we will analyze the influence of each of the features involved. 
+
+**Question of Interest**: In this report we analyze the characteristics
+of 41 major cities to determine which of the provided six climate and
+ecological variables are the most significant in determining air
+pollution. Here we use the annual mean concentration of sulphur dioxide
+(SO2) as a measure of the air pollution of a city.
+
+**Impact of result:**
+Identifying key causes of air pollution can influence future policies implemented in larger cities. 
+- Insights gained can inform policymakers and government agencies in designing and implementing certain policies to combat air pollution. 
+- By understanding factors influencing pollution levels, healthcare professionals can better educate the public about associated health risks.
+- By identifying the sources and factors contributing to pollution, environmental scientists can devise strategies to minimize the impact on wildlife of affected ecosystems which can in turn contribute to the conservation and restoration of natural habitats and promote sustainable development practices. 
+- This can also influence urban planning decisions and infrastructure development, particularly in areas affected by high pollution levels. By understanding these factors, things like public transportation systems and shifts to cleaner energy sources could be a focus for change.  
+
+Overall, the impact of project such as this lies in its potential to inform decision-making processes, drive policy change and bring overall awareness to health and environmental changes brought about by the shifting climate. 
+
+
+
+# Background: Data Overview
+
+**Introduce variables**
+
+Data frame with 41 observations on the following 7 variables
+
+*SO2* - Sulfur dioxide concentration in air (micrograms per cubic meter)
+
+*temp* - average annual temperature in Farenheit
+
+*manu* - number of manufacturing enterprises employing 20+ workers
+
+*popul* - population size(1970 census); (in thousands)
+
+*wind* - average annual wind speed (miles per hour)
+
+*precip* - average annual precipitation in inches.
+
+*predays -* average number of days with precipitation per year.
+
+
+Source:
+<https://search.r-project.org/CRAN/refmans/HSAUR3/html/USairpollution.html>
+
+# Exploratory Descriptive analysis (EDA)
+
+Before we delve into supervised and unsupervised learning methods, we want to get a surface level look at our data in our EDA. First, we will begin by looking at icon-based analysis for each city. In our first introductory lesson on multivariate data analysis, we were introduced to this method to get basic
+observations of the overall data distribution, without necessarily
+trying to abstract correlational tendencies.
+
+
+## Icon-based analysis
+
+```{r}
+df = USairpollution
+
+palette(rainbow(7)) # set colors
+stars(df, len=1, cex=0.5, key.loc=c(15, 2),
+       labels=row.names(USairpollution), draw.segments=TRUE)
+```
+
+Let's pull some basic takeaways for cities of interest that we will want
+to observe later during higher level analysis.
+
+At first site, in terms of SO2 levels, our highest offenders are:
+Chicago, Providence, Cleveland, Philadelphia, and Pittsburgh. Given that
+Chicago has both the largest manufacturing and population of all cities
+in this dataset, it may be indicative of the level of significance of those two variables as it also has the highest
+SO2 levels. Cleveland, Philadelphia, and Pittsburgh are also
+much larger cities and more densely populated manufacturing hubs in
+the Rust Belt which further confirms our inference. 
+
+Providence, however, sticks out as the city with the second highest SO2
+concentration rate. With a very small population and manufacturing arm
+at the very edge of New England, there may be other variables that are influencing such a high SO2 level. We will explore further. 
+
+## Parallel coordinates graph
+
+Next, we will look at a parallel coordinates graph. 
+
+```{r}
+#First, we scale all of our columns so that they are on similar grounds for graphing. GGally does this for us automatically, but it is good for factoring regardless.
+
+cols <- c("SO2", "temp", "manu", "popul", "wind", "precip", "predays")
+df2 <- as.data.frame(scale(USairpollution[, cols]))
+
+```
+
+```{r}
+
+num_groups <- 3
+normalized_data = df2
+normalized_data$group <- cut(normalized_data$SO2, breaks = num_groups, labels = FALSE)
+
+ggparcoord(normalized_data, columns = 1:7,
+           groupColumn = "group",      
+           scale = "uniminmax",        
+           alphaLines = 0.5,           
+           showPoints = TRUE) 
+
+```
+While it is not as intuitive as the iconography, we can clearly see a relationship between SO2, manufacturing and population size. We delineate the data into groups based on their SO2 values; we picked to do three groups as the data distribution looked most fair using cut(). 
+
+
+#correlogram
+
+Next, we will look a correlogram and histograms of all features to display the correlation between the
+different variables. 
+
+```{r}
+ggpairs(df2, title = "Correlogram", progress = FALSE)
+```
+When comparing SO2 levels to each of our features, we notice that there is a strong positive correlation with manufacturing and population  and a strong negative correlation with temperature. This further confirms our earlier analyses and is of no surprise. Some other interesting insights is that there is an extremely high collinearity between manufacturing and population. In reality, it makes sense to have such an observation as manufacturing within a given city will tend to increase with population size, however population size can have effects on SO2 levels outside of manufacturing and the same can be said of manufacturing. Without further industry knowledge we cannot give further insight. 
+
+What we should also keep in mind is that though precipitation in inches(*precip*) looks to be less correlated with SO2 levels than number of days of precipitation (*predays*), there is also a strong correlation between the two predictor variables as both are measures of precipitation. What may be happening here is that the effects of one variable is masking the other on our response variable as there is collinearity between the two predictors. 
+
+
+## Histogram
+
+Next we briefly take a look at the distributions of each of our variables.
+```{r}
+#create histograms of scaled data
+par(mfrow = c(2, 4))
+for (i in 1:7) {
+  hist(df[[i]], main = cols[i], xlab = cols[i])
+}
+```
+Based on our histograms, we see a similar distribution between SO2, manufacturing and population size and an opposite skew with precipitation and predays which can indicate positive correlation of the variables with a similar histogram skew and a negative correlation with variables of the opposing skew. 
+
+# Method Selection: PCA
+
+When performing PCA, it is important to consider several assumptions that are required for this method.
+
+1. PCA relies on the assumption of correlation among variables within the data set. 
+2. The scale of variables in the data set can impact the results of PCA, making it sensitive to scale variations. 
+3. PCA assumes a linear relationship between features.
+4. Outliers in the data can affect the performance of PCA.
+
+```{r}
+suppressPackageStartupMessages(library(factoextra))
+
+
+# Eigenvalues and eigenvectors
+eigen_val = eigen((cov(df2)))$values
+eigen_vec = eigen(cov(df2))$vectors
+
+# First two eigenvectors multiplied by transpose of data set
+l_1 = eigen_vec[1:7,1] %*% t(df2)
+l_2 = eigen_vec[1:7,2] %*% t(df2)
+
+# Plots
+# Plot 1: PCA Projection
+plot(-l_1[1, 1:41], l_2[1, 1:41], xlab = "First Principal Component", ylab = "Second Principal Component", main = "PCA Projection", pch = 16, col = "blue", grid(lty = "dotted"))
+
+# Plot 2: Sorted Values
+plot(sort(-l_1[1, 1:41]), xlab = "Observation", ylab = "Sorted First Principal Component",
+     main = "Sorted First Principal Component", pch = 16, col = "blue",grid(lty = "dotted"))
+```
+
+We first performed matrix multiplication between our first and second eigenvectors and the transpose of our data set in order to project our data into the eigenvectors. The eigenvectors are sorted in descending order based on their eigenvalues, where the maximum eigenvalue shows the most variance within the data. By doing this, we are trying to capture the primary and secondary sources of our data. 
+
+In order to correctly judge the performance of multiple predictor variables on SO2 levels, we have to remove SO2 from our dataset. We can use the resulting performance model in comparison to the overall SO2 distribution to see its accuracy.
+
+We will now go through the multiple methods provided in lecture to determine the number of principal components we want in our model.
+
+```{r}
+df3 = df2
+df3 = df3[-1]
+
+corr_matrix = cor(df3)
+val = eigen(corr_matrix)$values
+mean_eigenvalues = mean(val)
+vec = eigen(corr_matrix)$vectors
+```
+
+Method one: Contribution ratio approach
+
+We will retain sufficient components to account for a specified percentage of the total variance, e.x. 85%.
+
+```{r}
+# Cumulative Proportion for each Component
+cumsum(val)/6
+
+# Cumulative Proportion Plot
+plot(cumsum(val)/6, type="b", main="Cumulative Proportion Plot",ylab="proportion of variance explained")
+abline(h = 0.85, col = "red", lty = "dashed") # 85% of total variance
+
+```
+
+Based on the scree plot above, we see that the first three PCs account for just over 85% of the variance.
+
+Method two: Overall threshold
+We want to retain the components whose eigenvalues are greater than the average of the eigenvalues.
+
+```{r}
+# Scree Plot with Eigenvalues
+plot(val, pch = 16, col = "blue", xlab = "Principal Component #", 
+     ylab = "Eigenvalues", main = "Scree Plot")
+abline(h = mean(val), col = "red", lty = "dashed") # Add a horizontal line at the maximum eigenvalue
+grid(col = "lightgray", lty = "dotted") # Add gridlines
+
+```
+
+In the above graph, we see that the mean of eigenvalues fits squarely in between Lambda_3 and Lambda_4. With the two tests in agreement, we therefore conclude that we only need to use the first three PCs.
+
+Our last method discussed in class for choosing PCs is to use a heatmap correlation plot.
+
+```{r}
+
+df3.pca <- PCA(df3)
+corrplot(df3.pca$var$cor,is.corr=TRUE)
+
+```
+
+Here, we can see that the first three PCs contain almost all (85%) of the necessary weights needed for our model. Interestingly, the highly correlated variables are almost all positive, except for temperature.
+
+```{r}
+df3.pca$var$coord
+```
+Here, we can see the weights for our graph. Manufacturing and population, as expected, have very high weights on the first dimension. The first dimension is the most important for our performance model. As shown before, it has the largest eigenvalue and contributes the largest amount to the cumulative variance. 
+In the calculation below for our performance model, we multiply the first three dimensions by their respective eigenvalues, and then sum them together. As $\lambda_1 > \lambda_2 > \lambda_3 $, Dimension 1 has the largest weight on the overall model indicating that manufacturing and population carry the most influence in determinging SO2.
+
+```{r}
+
+PC_obs = df3.pca$ind$coord
+PC_obs_df = as.data.frame(PC_obs)
+
+val = df3.pca$eig[, 1]
+
+# Ranking each city
+rank_1 = sqrt(val[1]) * PC_obs_df[1]
+rank_2 = sqrt(val[2]) * PC_obs_df[2]
+rank_3 = sqrt(val[3]) * PC_obs_df[3]
+
+total_rank = rank_1 + rank_2 + rank_3
+colnames(total_rank) = "Performance"
+sorted = total_rank[order(-total_rank$Performance), , drop = FALSE]
+sorted
+```
+
+These performance rankings align greatly with the analysis made during EDA and the overall individual iconography graphics. Based on our heatmap, our PCA model strongly favors high population and manufacturing metrics; with a small negative weighting for high temperatures.
+
+As a result, we find Phoenix in dead last as it is a city with very low metrics across the board except for a high temperature. Chicago, which has very high SO2, manufacturing, and population metrics, tops the board by a wide margin. 
+
+Something particularly interesting is the placement of Providence. As highlighted during the EDA section, Providence does not have high population or manufacturing metrics, but very high SO2. It is a possibility that there are other factors not included in our original data which may be contributing to this phenomenon. As a result, its performance ranks much lower than its SO2 value as it does not fit the mold of the model. 
+
+Overall in terms of predicting the lowest and highest rankings in air pollution, the predictions used by our dimension-reduction method seems to hold accurate in comparison to the true observations. 
+
+
+# Model Fitting for comparison
+
+We then test our findings by introducing a supervised method. 
+
+## Mention of stepAIC
+Originally we had run a stepAIC method which gave us the optimal set of features to be manufacturing and population. However this was based on a linear model.
+```{r}
+# Model selection (stepAIC)
+#fits a full 3rd order model with interaction terms
+full_model = lm(SO2~.^3 , data = df2)
+null_model = lm(SO2~1, data=df2)
+
+# Forward-stepwise (start with null model, at each step consider adding or dropping variable)
+step.aic = stepAIC(null_model, scope=list(upper=full_model, lower=null_model), direction='both', k=2, trace=FALSE)
+step.aic$anova
+summary(step.aic)
+```
+Our stepAIC method gives the greatest significant to manufacturing and population as we expected given our EDA.
+
+
+## Feature interaction
+We further explore a more complex model. 
+We begin with the use of an interactive model which differs from our PCA in the sense that we can integrate interaction terms wheras PCA assumes a linear relationship between features. 
+
+```{r}
+ #final model, we test variables on original data. As we see, the best model
+ #in terms of Adj R-Squared has very many terms and is not very interpretable
+model1 = lm(SO2 ~ temp + manu + popul + wind + precip + predays + temp:manu + 
+    temp:popul + temp:wind + temp:predays + manu:wind + manu:precip + 
+    manu:predays + popul:wind + popul:precip + popul:predays + 
+    wind:precip + wind:predays, data = df)
+summary(model1)
+ #This reduced model is reduced so that all included variables are individually
+ #significant, but has lower adj R-Squared overall
+model2 = lm(SO2~ popul+temp+manu+wind*precip, data = df)
+summary(model2)
+```
+
+As we can see from the summary table above, we have population, temperature manufacturing wind and precipitation to be significant as well as two interaction terms that help us explain 73.1% of our variance shown in the adjusted $R^2$. This confirms our original inferences and analyses done in both the EDA and PCA. 
+
+# Discussion
+
+We looked into the USairpollution dataset to analyze which of our 6 features were the most significant on levels of SO2 which we deemed to be our measure of air pollution. What we notice from PCA was that population, manufacturing, temperature and wind had the greatest contribution which we confirm through our F tests in the summary of our final linear regression model as well as our EDA. We noted that there do exist certain outliers like Providence which we observed to have high SO2 while having lower values of the aforementioned significant variables do to possible incomplete information. Also, we drew attention to the likelihood that days of precipitation and precipitation in inches had high collinearity which can render one variable insignificant with the presence of the other. 
+
+Based on our findings and the ranking of each city based on our principal components, here are some suggestions for future research and policy making. 
+
+First, since we find that Chicago, Philadelphia, and Cleveland were ranked the highest based on our components, we believe that it would beneficial to analyze and identify the possible key contributors to air pollution in these cities. 
+
+One suggestion would be to monitor the emissions from manufacturing and power-generating industries as well as vehicle emissions in these 3 cities. Doing this can help policymakers identify the main causes of air pollution and develop new policies in order to reduce pollution level. 
+
+Furthermore, we can study the lower ranked cities such as Salt Lake City, Albuquerque, and Phoenix to identify successful and policies that have led to cleaner air and reduced air pollution. We can share these findings with the cities with high pollution levels to guide decision-making and implement similar measures.
+
+Lastly, we can explore more factors that impact the levels of air pollution in the city such as geographical climate, industrial composition, climate, and transportation infrastructure. By understanding these factors, policymakers can then find solutions that are tailored towards their specific city.
+
+
+# Contributions
+Mark Faynboym: Introduction, Data explanation, EDA, ModelFitting, Conclusion
+
+Vincent Barletta: Introduction, EDA, PCA, Conclusion
+
+Christian(Ian) Dimapasok: PCA
+
+Jared Woolsey: Model Fitting, Discussion, Debugging
+
+# Session info {.unnumbered}
+
+```{r}
+sessionInfo()
+```
